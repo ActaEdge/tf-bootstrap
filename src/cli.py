@@ -19,9 +19,9 @@ def choose_from_list(options, prompt):
 @click.option('--profile', help='AWS CLI profile to use')
 @click.option('--account-name', help='Name of the AWS account to create')
 @click.option('--admin-email', help='Email of the administrator for the new account')
-@click.option('--region', default='us-east-1', help='Region for Terraform resources')
-@click.option('--output', default='.', help='Output directory for generated Terraform files')
-@click.option('--credpath', default='~/.aws/credentials', help='File path where account credentials will be appended')
+@click.option('--region', help='Region for Terraform resources')
+@click.option('--output', help='Output directory for generated Terraform files')
+@click.option('--credpath', help='File path where account credentials will be appended')
 @click.option('--admin-pw', help='Set password for admin user')
 @click.option('--reset-account', help='Provide Account ID to reset')
 def main(profile, account_name, admin_email, region, output, credpath, admin_pw, reset_account):
