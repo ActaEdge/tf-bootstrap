@@ -22,3 +22,22 @@ variable "account_name" {
   description = "Name of the AWS account"
   type        = string
 }
+
+# GitHub Integration Variables
+variable "github_org" {
+  description = "GitHub organization name"
+  type        = string
+  default     = ""
+}
+
+variable "github_repo" {
+  description = "GitHub repository name"
+  type        = string
+  default     = ""
+}
+
+variable "github_branch" {
+  description = "GitHub branch to use"
+  type        = string
+  default     = "main"
+}
