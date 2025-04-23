@@ -104,12 +104,20 @@ def main(profile, account_name, admin_email, region, output, credpath, admin_pw,
     
     # Display GitHub connection approval URL if CI/CD was set up
     if setup_cicd and tf_outputs and 'github_connection_approval_url' in tf_outputs:
-        click.echo("\n⚠️  GitHub Connection Requires Approval")
-        click.echo("Visit the AWS Console to complete the GitHub connection setup:")
-        click.echo(f"  - AWS Region: {region}")
-        click.echo(f"  - Connection Name: github-connection-{account_name}")
-        click.echo(f"  - URL: {tf_outputs['github_connection_approval_url']}")
-        click.echo("\nAfter applying the Terraform configuration, you'll need to manually approve the connection.")
+        click.echo("\n⚠️  GitHub CI/CD Setup Instructions")
+        click.echo("Complete the following steps to set up CI/CD:")
+        click.echo("1. First apply the bootstrap Terraform configuration:")
+        click.echo(f"   cd {output}/tf/tf.bootstrap && terraform init && terraform apply")
+        click.echo("\n2. Then apply the skeleton Terraform configuration that includes CI/CD:")
+        click.echo(f"   cd {output}/tf/tf.skel && terraform init && terraform apply")
+        click.echo("\n3. Visit the AWS CodeStar Connections console to approve the GitHub connection:")
+        click.echo(f"   URL: {tf_outputs['github_connection_approval_url']}")
+        click.echo(f"   - Find 'github-connection-{account_name}' and click 'Update pending connection'")
+        click.echo("   - Follow the steps to authorize AWS to access your GitHub repository")
+        click.echo("\n4. After approving the connection, your CodeBuild project and pipeline will be able to access your GitHub repository")
+        click.echo("   - You can verify this by checking the CodeBuild project in the AWS console")
+        click.echo("   - The first pipeline run may fail until the connection is approved")
+        click.echo("\n5. You may need to push code to your repository to trigger the pipeline")
 
 if __name__ == "__main__":
     main()

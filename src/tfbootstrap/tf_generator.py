@@ -44,23 +44,13 @@ def create_tf(account_id: str, account_name: str, region: str, email: str, outpu
     # Copy all template files from tf.templates to tf.bootstrap
     template_dir = Path(__file__).parent.parent / "tf.templates"
     for template_file in template_dir.glob('*.tf'):
-        shutil.copy2(template_file, tf_bootstrap_dir)
+                    shutil.copy2(template_file, tf_bootstrap_dir)
     
-    # Create buildspec.yml template if CI/CD is enabled
-    if github_org and github_repo:
-        buildspec_path = tf_bootstrap_dir / "buildspec.yml"
-        buildspec_content = create_buildspec_template()
-        with buildspec_path.open("w") as f:
-            f.write(buildspec_content)
-        print(f"Created buildspec.yml template at: {buildspec_path}")
-        
-        # Generate connection approval URL (this is a placeholder URL format)
-        outputs["github_connection_approval_url"] = f"https://{region}.console.aws.amazon.com/codesuite/settings/connections"
-
     # Copy template files to tf.skel
     skel_template_dir = Path(__file__).parent.parent / "tf.skel"
     shutil.copy2(skel_template_dir / "main.tf", tf_skel_dir)
     shutil.copy2(skel_template_dir / "variables.tf", tf_skel_dir)
+    shutil.copy2(skel_template_dir / "cicd.tf", tf_skel_dir)
 
     # Generate consistent bucket and DynamoDB table names
     bucket_name = f"tf-state-{account_name}-{account_id[-6:]}"
@@ -74,22 +64,13 @@ bucket_name    = "{bucket_name}"
 region         = "{region}"
 dynamodb_table = "{dynamodb_table}"
 """
-    
-    # Add GitHub variables if CI/CD is enabled
-    if github_org and github_repo:
-        tfvars_content_bootstrap += f"""
-# GitHub CI/CD Configuration
-github_org    = "{github_org}"
-github_repo   = "{github_repo}"
-github_branch = "{github_branch}"
-"""
 
     with tfvars_file_bootstrap.open("w") as f:
         f.write(tfvars_content_bootstrap)
 
     print(f"Created terraform.tfvars file for bootstrap at: {tfvars_file_bootstrap}")
 
-    # Generate terraform.tfvars for skeleton
+    # Generate terraform.tfvars for skeleton with GitHub info if provided
     tfvars_content_skel = f"""\
 account_id     = "{account_id}"
 account_name   = "{account_name}"
@@ -97,6 +78,17 @@ region         = "{region}"
 bucket_name    = "{bucket_name}"
 dynamodb_table = "{dynamodb_table}"
 """
+    
+    # Add GitHub variables to skeleton tfvars if CI/CD is enabled
+    if github_org and github_repo:
+        tfvars_content_skel += f"""
+# GitHub CI/CD Configuration
+github_org    = "{github_org}"
+github_repo   = "{github_repo}"
+github_branch = "{github_branch or 'main'}"
+"""
+        # Generate connection approval URL
+        outputs["github_connection_approval_url"] = f"https://{region}.console.aws.amazon.com/codesuite/settings/connections"
 
     with tfvars_file_skel.open("w") as f:
         f.write(tfvars_content_skel)

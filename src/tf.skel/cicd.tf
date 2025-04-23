@@ -6,6 +6,51 @@ locals {
 
   # Check if GitHub info is configured
   is_github_configured = local.github_org != "" && local.github_repo != ""
+
+  # Define the buildspec content inline
+  buildspec_content = <<BUILDSPEC
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      - echo Installing Terraform...
+      - wget https://releases.hashicorp.com/terraform/1.5.7/terraform_1.5.7_linux_amd64.zip
+      - unzip terraform_1.5.7_linux_amd64.zip
+      - mv terraform /usr/local/bin/
+  
+  pre_build:
+    commands:
+      - echo Initializing Terraform...
+      - terraform init -input=false
+
+  build:
+    commands:
+      - echo Running Terraform plan...
+      - terraform plan -out=tfplan -input=false
+      - terraform show -json tfplan > tfplan.json
+
+artifacts:
+  files:
+    - tfplan
+    - tfplan.json
+    - '**/*'
+BUILDSPEC
+}
+
+# Create CloudWatch log group explicitly
+resource "aws_cloudwatch_log_group" "codebuild_logs" {
+  count = local.is_github_configured ? 1 : 0
+  name  = "codebuild-tf-${var.account_name}-plan-log-group"
+
+  retention_in_days = 14
+
+  tags = {
+    Environment = "Terraform"
+    Name        = "tf-${var.account_name}-cicd-logs"
+  }
 }
 
 resource "aws_codebuild_project" "terraform_plan" {
@@ -30,7 +75,7 @@ resource "aws_codebuild_project" "terraform_plan" {
     type            = "GITHUB"
     location        = "https://github.com/${local.github_org}/${local.github_repo}.git"
     git_clone_depth = 1
-    buildspec       = "buildspec.yml"
+    buildspec       = local.buildspec_content
   }
 
   logs_config {
@@ -47,26 +92,14 @@ resource "aws_codebuild_project" "terraform_plan" {
   }
 }
 
-# Create CloudWatch log group explicitly
-resource "aws_cloudwatch_log_group" "codebuild_logs" {
-  count = local.is_github_configured ? 1 : 0
-  name  = "codebuild-tf-${var.account_name}-plan-log-group"
-
-  retention_in_days = 14
-
-  tags = {
-    Environment = "Terraform"
-    Name        = "tf-${var.account_name}-cicd-logs"
-  }
-}
-
 resource "aws_codepipeline" "terraform_pipeline" {
   count    = local.is_github_configured ? 1 : 0
   name     = "tf-${var.account_name}-pipeline"
   role_arn = aws_iam_role.codepipeline_role[0].arn
 
   artifact_store {
-    location = aws_s3_bucket.terraform_state.id
+    # Use the S3 bucket from the bootstrap state
+    location = var.bucket_name
     type     = "S3"
   }
 
@@ -151,8 +184,8 @@ resource "aws_iam_role_policy" "codebuild_policy" {
     {
       "Effect": "Allow",
       "Resource": [
-        "${aws_s3_bucket.terraform_state.arn}",
-        "${aws_s3_bucket.terraform_state.arn}/*"
+        "arn:aws:s3:::${var.bucket_name}",
+        "arn:aws:s3:::${var.bucket_name}/*"
       ],
       "Action": [
         "s3:GetObject",
@@ -164,12 +197,21 @@ resource "aws_iam_role_policy" "codebuild_policy" {
     {
       "Effect": "Allow",
       "Resource": [
-        "${aws_dynamodb_table.terraform_locks.arn}"
+        "arn:aws:dynamodb:${var.region}:${var.account_id}:table/${var.dynamodb_table}"
       ],
       "Action": [
         "dynamodb:GetItem",
         "dynamodb:PutItem",
         "dynamodb:DeleteItem"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Resource": [
+        "${aws_codestarconnections_connection.github[0].arn}"
+      ],
+      "Action": [
+        "codestar-connections:UseConnection"
       ]
     }
   ]
@@ -216,8 +258,8 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
         "s3:PutObject"
       ],
       "Resource": [
-        "${aws_s3_bucket.terraform_state.arn}",
-        "${aws_s3_bucket.terraform_state.arn}/*"
+        "arn:aws:s3:::${var.bucket_name}",
+        "arn:aws:s3:::${var.bucket_name}/*"
       ]
     },
     {
