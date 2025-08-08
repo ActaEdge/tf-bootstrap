@@ -163,14 +163,15 @@ def run_interactive(profile, account_name, admin_email, region, output, credpath
 @click.option('--github-branch', default='main', help='GitHub branch to use for CI/CD pipeline')
 def main(profile, account_name, admin_email, region, output, credpath, admin_pw, reset_account,
          github_org, github_repo, github_branch):
-    # CLI mode if any parameter is provided, otherwise interactive mode
-    params = [profile, account_name, admin_email, region, output, credpath, admin_pw, reset_account, github_org, github_repo, github_branch]
-    cli_mode = any(param is not None for param in params if param != "~/.aws/credentials")
-
-    if cli_mode:
+    # Check if any non-default parameters were provided (excluding credpath which has a default)
+    # and github_branch which always has a default value of 'main'
+    cli_params = [profile, account_name, admin_email, region, output, admin_pw, reset_account, github_org, github_repo]
+    if any(param is not None for param in cli_params):
+        # CLI mode - validate required parameters and fail gracefully if missing
         run_cli(profile, account_name, admin_email, region, output, credpath, admin_pw, reset_account,
                 github_org, github_repo, github_branch)
     else:
+        # Interactive mode - prompt for missing parameters
         run_interactive(profile, account_name, admin_email, region, output, credpath, admin_pw, reset_account,
                         github_org, github_repo, github_branch)
 
