@@ -83,7 +83,7 @@ def run_interactive(profile, account_name, admin_email, region, output, credpath
                     github_org, github_repo, github_branch):
     if not profile:
         profiles = list_aws_profiles()
-        profile = choose_from_list(profiles, "Select an AWS profile")
+        profile = choose_from_list(profiles, "Select profile with ORG access")
     if not account_name:
         account_name = click.prompt("Enter the new account name")
     if not admin_email:
@@ -150,11 +150,12 @@ def run_interactive(profile, account_name, admin_email, region, output, credpath
         click.echo("\n5. You may need to push code to your repository to trigger the pipeline")
 
 @click.command()
-@click.option('--profile', help='AWS CLI profile to use')
+@click.option('--profile', help=f'AWS profile we can use to create a child account'
+                            '\n** THIS MUST HAVE ACCESS TO CREATE ACCOUNTS INSIDE ORGANIZATION **')
 @click.option('--account-name', help='Name of the AWS account to create')
 @click.option('--admin-email', help='Email of the administrator for the new account')
-@click.option('--region', help='Region for Terraform resources')
-@click.option('--output', help='Output directory for generated Terraform files')
+@click.option('--region', default='us-east-1', help='Region for Terraform resources')
+@click.option('--output', default='~/tmp', help='Output directory for generated Terraform files')
 @click.option('--credpath', help='File path where account credentials will be appended', default="~/.aws/credentials")
 @click.option('--admin-pw', help='Set password for admin user')
 @click.option('--reset-account', help='Provide Account ID to reset')
@@ -163,10 +164,16 @@ def run_interactive(profile, account_name, admin_email, region, output, credpath
 @click.option('--github-branch', default='main', help='GitHub branch to use for CI/CD pipeline')
 def main(profile, account_name, admin_email, region, output, credpath, admin_pw, reset_account,
          github_org, github_repo, github_branch):
-    # Check if any non-default parameters were provided (excluding credpath which has a default)
-    # and github_branch which always has a default value of 'main'
-    cli_params = [profile, account_name, admin_email, region, output, admin_pw, reset_account, github_org, github_repo]
-    if any(param is not None for param in cli_params):
+    # Check if any non-default parameters were provided
+    # Exclude parameters with defaults: credpath, github_branch, region, output
+    cli_params = [profile, account_name, admin_email, admin_pw, reset_account, github_org, github_repo]
+    
+    # Also check if region or output were explicitly changed from their defaults
+    has_cli_params = any(param is not None for param in cli_params)
+    region_changed = region != 'us-east-1'
+    output_changed = output != '~/tmp'
+    
+    if has_cli_params or region_changed or output_changed:
         # CLI mode - validate required parameters and fail gracefully if missing
         run_cli(profile, account_name, admin_email, region, output, credpath, admin_pw, reset_account,
                 github_org, github_repo, github_branch)
