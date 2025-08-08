@@ -27,6 +27,31 @@ def validate_required_params(profile, account_name, admin_email, admin_pw, regio
     if missing and not interactive:
         raise click.UsageError(f"Missing required parameters: {', '.join(missing)}. Please provide them as command line options.")
 
+def output_on_success(account_id, account_name, output, tf_outputs, setup_cicd=False):
+    """Display success message and instructions after account creation"""
+    click.echo(f"✅ Done! Terraform configuration has been created in '{output}/tf/' directory.")
+    click.echo("************* Remember to enable MFA for 'admin' account ******************")
+    click.echo(f"  - Bootstrap configuration: '{output}/tf/tf.bootstrap/'")
+    click.echo(f"  - Skeleton configuration: '{output}/tf/tf.skel/'")
+    new_account_url = f"https://{account_id}.signin.aws.amazon.com/console"
+    click.echo(f"  - New account URL: {new_account_url}")
+    
+    if setup_cicd and tf_outputs and 'github_connection_approval_url' in tf_outputs:
+        click.echo("\n⚠️  GitHub CI/CD Setup Instructions")
+        click.echo("Complete the following steps to set up CI/CD:")
+        click.echo("1. First apply the bootstrap Terraform configuration:")
+        click.echo(f"   cd {output}/tf/tf.bootstrap && terraform init && terraform apply")
+        click.echo("\n2. Then apply the skeleton Terraform configuration that includes CI/CD:")
+        click.echo(f"   cd {output}/tf/tf.skel && terraform init && terraform apply")
+        click.echo("\n3. Visit the AWS CodeStar Connections console to approve the GitHub connection:")
+        click.echo(f"   URL: {tf_outputs['github_connection_approval_url']}")
+        click.echo(f"   - Find 'github-connection-{account_name}' and click 'Update pending connection'")
+        click.echo("   - Follow the steps to authorize AWS to access your GitHub repository")
+        click.echo("\n4. After approving the connection, your CodeBuild project and pipeline will be able to access your GitHub repository")
+        click.echo("   - You can verify this by checking the CodeBuild project in the AWS console")
+        click.echo("   - The first pipeline run may fail until the connection is approved")
+        click.echo("\n5. You may need to push code to your repository to trigger the pipeline")
+
 def run_cli(profile, account_name, admin_email, region, output, credpath, admin_pw, reset_account,
             github_org, github_repo, github_branch):
     validate_required_params(profile, account_name, admin_email, admin_pw, region, output, reset_account, interactive=False)
@@ -57,27 +82,8 @@ def run_cli(profile, account_name, admin_email, region, output, credpath, admin_
         github_repo=github_repo,
         github_branch=github_branch
     )
-    click.echo(f"✅ Done! Terraform configuration has been created in '{output}/tf/' directory.")
-    click.echo("************* Remember to enable MFA for 'admin' account ******************")
-    click.echo(f"  - Bootstrap configuration: '{output}/tf/tf.bootstrap/'")
-    click.echo(f"  - Skeleton configuration: '{output}/tf/tf.skel/'")
-    new_account_url = f"https://{account_id}.signin.aws.amazon.com/console"
-    click.echo(f"  - New account URL: {new_account_url}")
-    if github_org and github_repo and tf_outputs and 'github_connection_approval_url' in tf_outputs:
-        click.echo("\n⚠️  GitHub CI/CD Setup Instructions")
-        click.echo("Complete the following steps to set up CI/CD:")
-        click.echo("1. First apply the bootstrap Terraform configuration:")
-        click.echo(f"   cd {output}/tf/tf.bootstrap && terraform init && terraform apply")
-        click.echo("\n2. Then apply the skeleton Terraform configuration that includes CI/CD:")
-        click.echo(f"   cd {output}/tf/tf.skel && terraform init && terraform apply")
-        click.echo("\n3. Visit the AWS CodeStar Connections console to approve the GitHub connection:")
-        click.echo(f"   URL: {tf_outputs['github_connection_approval_url']}")
-        click.echo(f"   - Find 'github-connection-{account_name}' and click 'Update pending connection'")
-        click.echo("   - Follow the steps to authorize AWS to access your GitHub repository")
-        click.echo("\n4. After approving the connection, your CodeBuild project and pipeline will be able to access your GitHub repository")
-        click.echo("   - You can verify this by checking the CodeBuild project in the AWS console")
-        click.echo("   - The first pipeline run may fail until the connection is approved")
-        click.echo("\n5. You may need to push code to your repository to trigger the pipeline")
+    setup_cicd = github_org and github_repo
+    output_on_success(account_id, account_name, output, tf_outputs, setup_cicd)
 
 def run_interactive(profile, account_name, admin_email, region, output, credpath, admin_pw, reset_account,
                     github_org, github_repo, github_branch):
@@ -127,27 +133,7 @@ def run_interactive(profile, account_name, admin_email, region, output, credpath
         github_branch=github_branch
     )
 
-    click.echo(f"✅ Done! Terraform configuration has been created in '{output}/tf/' directory.")
-    click.echo("************* Remember to enable MFA for 'admin' account ******************")
-    click.echo(f"  - Bootstrap configuration: '{output}/tf/tf.bootstrap/'")
-    click.echo(f"  - Skeleton configuration: '{output}/tf/tf.skel/'")
-    new_account_url = f"https://{account_id}.signin.aws.amazon.com/console"
-    click.echo(f"  - New account URL: {new_account_url}")
-    if setup_cicd and tf_outputs and 'github_connection_approval_url' in tf_outputs:
-        click.echo("\n⚠️  GitHub CI/CD Setup Instructions")
-        click.echo("Complete the following steps to set up CI/CD:")
-        click.echo("1. First apply the bootstrap Terraform configuration:")
-        click.echo(f"   cd {output}/tf/tf.bootstrap && terraform init && terraform apply")
-        click.echo("\n2. Then apply the skeleton Terraform configuration that includes CI/CD:")
-        click.echo(f"   cd {output}/tf/tf.skel && terraform init && terraform apply")
-        click.echo("\n3. Visit the AWS CodeStar Connections console to approve the GitHub connection:")
-        click.echo(f"   URL: {tf_outputs['github_connection_approval_url']}")
-        click.echo(f"   - Find 'github-connection-{account_name}' and click 'Update pending connection'")
-        click.echo("   - Follow the steps to authorize AWS to access your GitHub repository")
-        click.echo("\n4. After approving the connection, your CodeBuild project and pipeline will be able to access your GitHub repository")
-        click.echo("   - You can verify this by checking the CodeBuild project in the AWS console")
-        click.echo("   - The first pipeline run may fail until the connection is approved")
-        click.echo("\n5. You may need to push code to your repository to trigger the pipeline")
+    output_on_success(account_id, account_name, output, tf_outputs, setup_cicd)
 
 @click.command()
 @click.option('--profile', help=f'AWS profile we can use to create a child account'
