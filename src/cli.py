@@ -2,6 +2,7 @@
 
 import click
 import boto3
+import os
 from tfbootstrap.aws_account_manager import AWSAccountManager
 from tfbootstrap.tf_generator import create_tf
 
@@ -55,6 +56,8 @@ def output_on_success(account_id, account_name, output, tf_outputs, setup_cicd=F
 def run_cli(profile, account_name, admin_email, region, output, credpath, admin_pw, reset_account,
             github_org, github_repo, github_branch):
     validate_required_params(profile, account_name, admin_email, admin_pw, region, output, reset_account, interactive=False)
+    
+    
     if reset_account:
         if not profile:
             profiles = list_aws_profiles()
@@ -100,6 +103,7 @@ def run_interactive(profile, account_name, admin_email, region, output, credpath
     region = click.prompt("Enter AWS region", default=region)
     # Output already has a default from click.option
     output = click.prompt("Enter output directory for generated Terraform files", default=output)
+    
     setup_cicd = click.confirm("Would you like to set up CI/CD with GitHub?", default=False)
     if setup_cicd:
         if not github_org:
@@ -139,8 +143,8 @@ def run_interactive(profile, account_name, admin_email, region, output, credpath
 @click.option('--account-name', help='Name of the AWS account to create')
 @click.option('--admin-email', help='Email of the administrator for the new account')
 @click.option('--region', default='us-east-1', help='Region for Terraform resources')
-@click.option('--output', default='~/tmp', help='Output directory for generated Terraform files')
-@click.option('--credpath', help='File path where account credentials will be appended', default="~/.aws/credentials")
+@click.option('--output', default=f"{os.environ['HOME']}/tmp", help='Output directory for generated Terraform files')
+@click.option('--credpath', help='File path where account credentials will be appended', default=f"{os.environ['HOME']}/.aws/credentials")
 @click.option('--admin-pw', help='Set password for admin user')
 @click.option('--reset-account', help='Provide Account ID to reset')
 @click.option('--github-org', help='GitHub organization name for CI/CD pipeline')
@@ -155,7 +159,7 @@ def main(profile, account_name, admin_email, region, output, credpath, admin_pw,
     # Also check if region or output were explicitly changed from their defaults
     has_cli_params = any(param is not None for param in cli_params)
     region_changed = region != 'us-east-1'
-    output_changed = output != '~/tmp'
+    output_changed = output != f"{os.environ['HOME']}/tmp"
     
     if has_cli_params or region_changed or output_changed:
         # CLI mode - validate required parameters and fail gracefully if missing
