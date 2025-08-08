@@ -96,20 +96,18 @@ def run_interactive(profile, account_name, admin_email, region, output, credpath
         admin_email = click.prompt("Enter the admin email address")
     if not admin_pw:
         admin_pw = click.prompt("Enter the admin password", hide_input=True)
-    if not region:
-        region = click.prompt("Enter AWS region", default="us-east-1")
-    if not output:
-        output = click.prompt("Enter output directory for generated Terraform files")
+    # Region already has a default from click.option
+    region = click.prompt("Enter AWS region", default=region)
+    # Output already has a default from click.option
+    output = click.prompt("Enter output directory for generated Terraform files", default=output)
     setup_cicd = click.confirm("Would you like to set up CI/CD with GitHub?", default=False)
     if setup_cicd:
         if not github_org:
             github_org = click.prompt("Enter GitHub organization name")
         if not github_repo:
             github_repo = click.prompt("Enter GitHub repository name")
-        if github_branch == 'main':
-            custom_branch = click.confirm("Use a branch other than 'main'?", default=False)
-            if custom_branch:
-                github_branch = click.prompt("Enter GitHub branch name")
+        # GitHub branch already has a default from click.option
+        github_branch = click.prompt("Enter GitHub branch name", default=github_branch)
     else:
         github_org = None
         github_repo = None
